@@ -1,30 +1,390 @@
+
 ---
-title: "Test"
-author: "FGualo"
-date: "`r Sys.Date()`"
-output: html_document
+title: "Práctica Calidad del dato"
+author: "Fernando Gualo"
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Descripción de Librerías en R
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Esta sección contiene una breve descripción del propósito de las librerías instaladas en R y para qué se utilizan en el análisis de datos.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Librerías para Conexión y Manejo de Bases de Datos
 
-```{r cars}
-summary(cars)
+### `DBI`
+- **Descripción**: Proporciona una interfaz genérica para interactuar con bases de datos desde R.
+- **Uso**: Utilizado como capa base para conectar con diferentes motores de bases de datos (e.g., MySQL, PostgreSQL).
+- **Funciones clave**: `dbConnect()`, `dbGetQuery()`, `dbWriteTable()`, `dbDisconnect()`.
+
+### `RMySQL`
+- **Descripción**: Paquete específico para la conexión y manipulación de bases de datos MySQL desde R.
+- **Uso**: Permite ejecutar consultas SQL, extraer datos y realizar operaciones dentro de bases de datos MySQL.
+- **Funciones clave**: `dbConnect(MySQL())`, `dbSendQuery()`, `fetch()`, `dbDisconnect()`.
+
+## Librerías para Lectura de Datos
+
+### `readxl`
+- **Descripción**: Permite la lectura de archivos Excel (.xls y .xlsx) en R sin necesidad de depender de software externo.
+- **Uso**: Muy útil para importar datos en formato Excel.
+- **Funciones clave**: `read_excel()`, `excel_sheets()`.
+
+## Librerías para Manipulación y Transformación de Datos
+
+### `dplyr`
+- **Descripción**: Parte del ecosistema `tidyverse`, facilita la manipulación de dataframes con una sintaxis clara y concisa.
+- **Uso**: Útil para seleccionar, filtrar, agrupar y modificar datos de manera eficiente.
+- **Funciones clave**: `select()`, `filter()`, `mutate()`, `summarise()`, `group_by()`.
+
+### `tidyr`
+- **Descripción**: Parte del ecosistema `tidyverse` y se usa para transformar la estructura de los dataframes.
+- **Uso**: Facilita la conversión entre formatos anchos y largos, y la reorganización de datos con funciones como `pivot_longer()` y `pivot_wider()`.
+- **Funciones clave**: `gather()`, `spread()`, `pivot_longer()`, `pivot_wider()`.
+
+## Librerías para Análisis de Calidad de Datos
+
+### `naniar`
+- **Descripción**: Enfocada en la visualización y manejo de datos faltantes.
+- **Uso**: Proporciona funciones para explorar la presencia de valores NA y patrones de datos faltantes.
+- **Funciones clave**: `gg_miss_var()`, `vis_miss()`, `replace_with_na()`.
+
+### `visdat`
+- **Descripción**: Facilita la creación de visualizaciones de calidad de datos, como patrones de valores faltantes y estructuras de datos.
+- **Uso**: Útil para obtener una visión general de la estructura y calidad de un dataframe.
+- **Funciones clave**: `vis_dat()`, `vis_miss()`, `vis_cor()`.
+
+## Librerías para Visualización de Datos
+
+### `ggplot2`
+- **Descripción**: Paquete de visualización de datos basado en la gramática de gráficos.
+- **Uso**: Permite crear gráficos complejos de manera sencilla y altamente personalizable.
+- **Funciones clave**: `ggplot()`, `geom_point()`, `geom_line()`, `facet_wrap()`.
+
+## Librerías para Visualización de Correlaciones y Análisis Estadístico
+
+### `corrplot`
+- **Descripción**: Permite crear gráficos de matrices de correlación de manera fácil y visual.
+- **Uso**: Muy útil para identificar relaciones entre variables numéricas.
+- **Funciones clave**: `corrplot()`, `corrgram()`.
+
+---
+
+
+## 1. Cargar Librerías y Conjunto de Datos
+
+En primer lugar, será necesario realizar una carga de los datos en un frame de R, para ello en este caso Cargaremos todos los datos provenientes de un fichero Excel. Los datos son los mismos que los que se utilizan para el ejercicio propuesto con la diferencia que para el propuesto la conexión será necesaria a la base de datos relacional.
+
+
+```{r cargar_datos}
+
+
+# Cargar librerías
+library(DBI)
+library(RMySQL)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(naniar)
+library(visdat)
+library(ggplot2)
+library(tidyr)
+library(corrplot)
+
+
+
+# Cargar el archivo de datos
+data <- read_excel("C:/Users/Fernando.Gualo/Downloads/housing_price_madrid_v1.1.xlsx", sheet = "viviendas")
+
+# Ver las primeras filas para confirmar la carga
+head(data)
 ```
 
-## Including Plots
+## 2. Análisis Exploratorio de la Estructura
+En segundo lugar, tenemos que conocer los datos, por lo que se realizará un análisis exploratorio a distintos niveles: conocer las dimensiones que tiene el dataset, tipos de datos, etc.
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+### 2.1. Dimensiones del Conjunto de Datos
+A continuación se puede ver información general sobre el volumen de registros y la cantidad de dimensiones o propiedades dentro del dataset.
+```{r dimensiones}
+# Dimensiones de cada una de las columnas
+dim(data)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### 2.2. Tipos de Datos
+A través de esta visualización sencilla se pude tener una idea de que contiene cada uno de las dimensiones así como su tipología.
+```{r tipos_de_datos}
+# Mostrar los tipos de datos de cada columna
+str(data)
+```
+
+### 2.3. Valores Faltantes
+A continuación, se puede ver que el nivel de datos faltantes en el dataset es de 0, aspecto que revisaremos más delante.
+```{r valores_faltantes}
+# Mostrar el número de valores faltantes por cada columna
+missing_values <- colSums(is.na(data))
+missing_values[missing_values > 0]
+```
+
+### 2.4. Estadísticas Descriptivas
+Para ir entrando un poco más en detalle del conjunto de datos, utilizaremos estadisticos descriptivos sobre cad una de las dimensiones de nuestro dataset para ver aspectos como los valores máximo y mínimo, media, o mediana y así tener una aproximación alto nivel de como los datos están distribuidos.
+```{r estadisticas_descriptivas}
+# Generar estadísticas descriptivas para todas las columnas numéricas
+summary(data)
+```
+
+## 3. Distribución y revisión de Variables
+Una vez se dispone del conocimeinto de la estructura básica del dataset, vamos a poner el foco más en detalle en estudiar las variables numéricas y categóricas.
+
+## 3.1. Distribución de Variables Numéricas
+Para el caso de las variables numéricas vamos a utilizar histogramas para determinar como es la distribución de datos.
+
+```{r distribucion_numericas}
+# Distribución de variables numéricas clave (precios, superficies)
+numeric_cols <- select_if(data, is.numeric)
+
+# Histograma para revisar la distribución de las principales variables numéricas
+par(mfrow = c(2, 2))  # Crear una cuadrícula de gráficos
+for (col in colnames(numeric_cols)[1:4]) {
+  hist(numeric_cols[[col]], main = paste("Distribución de", col), xlab = col, col = "skyblue", breaks = 20)
+}
+```
+
+## 3.2. Revisión de Variables Categóricas
+Para la revisión de las variables categóricas veremos por ejemplo la distribución del número de barrios y distritos.
+
+```{r categorias}
+# Mostrar frecuencias de variables categóricas como barrio y distrito.
+table(data$barrio)
+table(data$distrito)
+```
+
+## 3.3. Análisis de Correlación
+Por último vamos a utilizar matrices de correlación para determinar la relación entre los distintos atributos.
+
+```{r correlacion}
+# Calcular la matriz de correlación
+correlation_matrix <- cor(select_if(data, is.numeric), use = "complete.obs")
+
+# Mostrar la matriz de correlación como un heatmap
+corrplot(correlation_matrix, method = "color", tl.cex = 0.7)
+```
+
+## 4. Identificación y validación de Reglas de Negocio
+A partir de este análisis inicial y la revisión de los datos del repositorio, se pueden inferir una serie de reglas de negocio tales como:
+
+```{r reglas_negocio}
+# Propuesta de Reglas de Negocio a implementar en el análisis de calidad de datos:
+
+reglas_negocio <- c(
+  "Regla 1. Cuando las viviendas de tipo ático tengan una planta asociada que no sea la primera. Para las viviendas que no venga reflejada la planta, se considerará que la planta será la sexta."
+,"Regla 2. Cuando las viviends sean de tipo estudio, deben tener al menos un baño y un dormitorio. Por lo tanto, habrá que corregir esta casuistica cuando los valores sean de 0."
+,"Regla 3. Será necesario unificar los valores Sí, sí, si, yes, s, etc. para la existencia de trasteros, de forma que solo pueda ser 'sí', y 'no'. En caso que el valor no venga informado, se considerará como 'no'."
+,"Regla 4. El valor de los años de antiguedad debes ser entero para que no aparezcan decimales."
+)
+
+# Mostrar las reglas de negocio propuestas
+reglas_negocio
+```
+
+### Regla 1. Cuando las viviendas de tipo ático tengan una planta asociada que no sea la primera. Para las viviendas que no venga reflejada la planta, se considerará que la planta será la sexta.
+```{r regla_1}
+
+# Chequeo de viviendas de tipo ático que estén en la planta 'primera' o sin planta informada (NA)
+resultado_regla_1 <- data %>%
+  filter(tipo.house. == "atico" & (is.na(planta.house.) | planta.house. == "primera"))
+
+# Imprimir las viviendas que cumplan con las condiciones de chequeo
+nrow(resultado_regla_1)
+
+```
+
+### Regla 2. Cuando las viviends sean de tipo estudio, deben tener al menos un baño y un dormitorio. Por lo tanto, habrá que corregir esta casuistica cuando los valores sean de 0.
+```{r regla_2}
+
+# Chequeo de viviendas de tipo estudio que no tengan al menos un baño o un dormitorio
+resultado_regla_2 <- data %>%
+  filter(tipo.house. == "estudio" & (is.na(banos) | banos < 1 | is.na(dorm) | dorm < 1))
+
+# Imprimir las viviendas que no cumplan con la regla
+nrow(resultado_regla_2)
+
+```
+
+### Regla 3. Será necesario unificar los valores Sí, sí, si, yes, s, etc. para la existencia de trasteros, de forma que solo pueda ser 'sí', y 'no'. En caso que el valor no venga informado, se considerará como 'no'.
+```{r regla_3}
+
+# Chequeo de valores inválidos en la columna 'trastero'
+resultado_regla_3 <- data %>%
+  filter(!(trastero. %in% c("no", "sí")))
+
+# Imprimir las viviendas con valores inválidos en la variable 'trastero'
+nrow(resultado_regla_3)
+
+```
+
+### Regla 4. El valor de los años de antiguedad debes ser entero para que no aparezcan decimales.
+```{r regla_4}
+# Verificar si hay valores decimales en la columna antig
+resultado_regla_4 <- data %>% filter(antig %% 1 != 0)
+nrow(resultado_regla_4)
+
+```
+
+
+## Resumen de Resultados y Conclusiones
+```{r resultados}
+# Resumen del grado de cumplimiento de las reglas
+resumen_reglas <- data.frame(
+  Regla = c( "Regla 1. Cuando las viviendas de tipo ático tengan una planta asociada que no sea la primera. Para las viviendas que no venga reflejada la planta, se considerará que la planta será la sexta.",
+             "Regla 2. Cuando las viviends sean de tipo estudio, deben tener al menos un baño y un dormitorio. Por lo tanto, habrá que corregir esta casuistica cuando los valores sean de 0.",
+             "Regla 3. Será necesario unificar los valores Sí, sí, si, yes, s, etc. para la existencia de trasteros, de forma que solo pueda ser 'sí', y 'no'. En caso que el valor no venga informado, se considerará como 'no'.",
+             "Regla 4. El valor de los años de antiguedad debes ser entero para que no aparezcan decimales."),
+  
+  Cumplimiento = c(nrow(resultado_regla_1) == 0,
+                   nrow(resultado_regla_2) == 0,
+                   nrow(resultado_regla_3) == 0,
+                   nrow(resultado_regla_4) == 0)
+)
+
+# Mostrar el resumen
+resumen_reglas
+```
+
+Como se puede haber, no se cumplen estas reglas de negocio, por lo que deberiamos solucionar estos incumplimientos para que los datos de vivienda tengn un mejor nivel de calidad y con ello maximizar su posibilidad de uso.
+
+
+## 5. Mejora de calidad de datos para las reglas no cumplidas
+
+### Regla 1. Cuando las viviendas de tipo ático tengan una planta asociada que no sea la primera. Para las viviendas que no venga reflejada la planta, se considerará que la planta será la sexta.
+```{r mejora_regla_1}
+
+# Paso 1: Estandarización del tipo de vivienda (opcional, si es necesario)
+data <- data %>%
+  mutate(tipo.house. = tolower(tipo.house.))  # Convierte a minúsculas para estandarizar
+
+# Paso 2: Corrección de registros sin planta (asignar planta 'sexta' si es NA para áticos)
+data <- data %>%
+  mutate(planta.house. = ifelse(tipo.house. == "atico" & is.na(planta.house.), "sexta", planta.house.))
+
+# Paso 3: Chequeo de viviendas de tipo ático que estén en la planta 'primera'
+resultado_regla_1 <- data %>%
+  filter(tipo.house. == "atico" & planta.house. == "primera")
+
+# Imprimir la cantidad de viviendas que incumplen la regla (ático en planta 'primera')
+nrow(resultado_regla_1)
+```
+
+### Regla 2. Cuando las viviends sean de tipo estudio, deben tener al menos un baño y un dormitorio. Por lo tanto, habrá que corregir esta casuistica cuando los valores sean de 0.
+```{r mejora_regla_2}
+
+# Paso 1: Corrección de baños y dormitorios para estudios con valores 0 (asignar al menos 1)
+data <- data %>%
+  mutate(
+    banos = ifelse(tipo.house. == "estudio" & (is.na(banos) | banos < 1), 1, banos),
+    dorm = ifelse(tipo.house. == "estudio" & (is.na(dorm) | dorm < 1), 1, dorm)
+  )
+
+# Paso 2: Chequeo de viviendas de tipo estudio que aún no cumplan la regla (caso residual)
+resultado_regla_2 <- data %>%
+  filter(tipo.house. == "estudio" & (banos < 1 | dorm < 1))
+
+# Imprimir la cantidad de viviendas que no cumplieron la regla (caso excepcional)
+nrow(resultado_regla_2)
+
+```
+
+### Regla 3. Será necesario unificar los valores Sí, sí, si, yes, s, etc. para la existencia de trasteros, de forma que solo pueda ser 'sí', y 'no'. En caso que el valor no venga informado, se considerará como 'no'.
+```{r mejora_regla_3}
+
+# Paso 1: Estandarización de valores en la columna 'trastero'
+data <- data %>%
+  mutate(
+    trastero. = case_when(
+      tolower(trastero.) %in% c("sí", "si", "s", "yes", "y", "sii", "si!") ~ "sí",  # Variaciones que significan 'sí'
+      tolower(trastero.) %in% c("no", "n", "na", "") ~ "no",  # Variaciones que significan 'no' o no informado
+      TRUE ~ "no"  # Valor por defecto si no está informado
+    )
+  )
+
+# Paso 2: Chequeo de valores aún inválidos en la columna 'trastero' (si queda alguno)
+resultado_regla_3 <- data %>%
+  filter(!(trastero. %in% c("no", "sí")))
+
+# Imprimir la cantidad de viviendas que aún tienen valores inválidos (caso muy excepcional)
+nrow(resultado_regla_3)
+
+```
+
+### Regla 4. El valor de los años de antiguedad debes ser entero para que no aparezcan decimales.
+```{r mejora_regla 4}
+# Verificar si hay valores decimales en la columna 'antig'
+antiguedad_decimales <- data %>% filter(antig %% 1 != 0)
+cat("Número de registros con antigüedad decimal: ", nrow(antiguedad_decimales), "\n")
+
+# Modificar los valores de la columna 'antig' para que sean enteros (redondear al número más cercano)
+data <- data %>% mutate(antig = round(antig, 0))
+
+# Verificar si los valores se han corregido
+antiguedad_decimales_post <- data %>% filter(antig %% 1 != 0)
+cat("Número de registros con antigüedad decimal después de la corrección: ", nrow(antiguedad_decimales_post), "\n")
+
+
+```
+
+# Tarea a realizar
+
+A continuación se proponen 3 ejercicios a completar. Se recomienda completaros en script markdown de R que se proporciona.
+
+## Tarea 1
+
+Hacer un análisis exploratorio de los datos similar al realizado en este ejercicio sobre la conexión a la base de datos que ya tenéis del módulo de bases de datos relacionales
+
+```{r Tarea 1}
+
+print("Completar Tarea 1")
+
+
+
+
+```
+
+
+## Tarea 2
+
+Una vez realizado el análisis exploratorio, crear los scripts para validar el grado de cumplimiento de estas reglas de negocio:
+
+Cuando la antigüedad de la vivienda sea de 0 años, el estado no podrá ser a reformar, si no que se corregira por defeco a 'buen_estado'
+
+Será necesario unificar los valores Sí, sí, si, yes, s, etc. para la existencia de ascensor, de forma que solo pueda ser 'sí', y 'no'. En caso que el valor no venga informado, se considerará como 'no'.
+
+Se considerará que todo lo que esté en la zona interior de la M.30 será considerado como vivienda de tipo zona comercial, por lo que habrá que corregir el valor para indicar que se encuentra en zona comercial.
+
+
+```{r Tarea 2}
+
+print("Completar Tarea 2")
+
+
+
+
+
+
+```
+
+
+## Tarea 3
+
+Corregir los problemas de calidad de datos identificados para poder cumplir con las reglas de negocio y llegar al 100% de grado de cumplimiento
+```{r Tarea 3}
+
+print("Completar Tarea 3")
+
+
+
+
+
+```
